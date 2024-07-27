@@ -1,119 +1,19 @@
-from flask import Flask,request
-from flask_smorest import abort
-from db import items,stores
-import uuid
-import pdb
-app=Flask(__name__)
+from flask import Flask, request
+from flask_smorest import Api
 
-@app.get("/store")
-def get_stores():
-    return{"stores":list(stores.values())}
+from resources.items import blp as itemBluePrint
+from resources.store import blp as storeBluePrint
+app = Flask(__name__)
 
-@app.get("/item")
-def get_all_items():
-    return{"items":list(items.values())}
+app.config["PROPAGATE_EXCEPTIONS"] = True
+app.config["API_TITLE"] = "Stores REST API"
+app.config["API_VERSION"] = "v1"
+app.config["OPENAPI_VERSION"] = "3.0.3"
+app.config["OPENAPI_URL_PREFIX"] = "/"
+app.config["SWAGGER_UI_PATH"] = "/swagger-ui"
+app.config["SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
 
+api = Api(app)
 
-
-@app.post("/store")
-def create_store():
-    # request_data=request.get_json()
-    # store_addition={"name":request_data["name"],"items":[]}
-    # stores.append(store_addition)
-    # return stores, 201
-    store_data=request.get_json()
-    if "name" not in store_data:
-        abort(
-            404,
-            message="Bad Request. Name should be included in json payload"
-        )
-    #checking if the store already exists or not
-    for store in stores.values():
-        if store_data["name"]==store["name"]:
-            abort(
-            404,
-            message="Bad Request. Name should be included in json payload"
-            )
-    store_id=uuid.uuid4().hex
-    store={**store_data, "id": store_id}
-    stores[store_id]=store
-    return store,201
-    
-
-@app.post("/item")
-def create_item():
-    item_data=request.get_json()
-    print(item_data)
-    if "price" not in item_data or "name" not in item_data or "store_id" not in item_data:
-        abort(
-            404,
-            message="Name,price and store id should be included in json payload"
-        )
-    #also check wheather item name and store id should not be duplicate
-
-    for item in items.values():
-        if item_data["store_id"]==item["store_id"] and item_data["name"]==item["name"]:
-            abort(
-                404,
-                message="Duplicate items found"
-            )
-
-
-    if item_data["store_id"] not in stores:
-       abort(404, message="store not found")
-    item_id=uuid.uuid4().hex
-    item={**item_data,"id": item_id}
-    items[item_id]=item
-    return item,201
-
-
-
-@app.get("/store/<string:store_id>")
-def get_store(store_id):
-    try:
-        return stores[store_id]
-    except KeyError:
-        abort(404, message="store not found")
-
-
-
-
-@app.get("/item/<string:item_id>")
-def get_item(item_id):
-    try:
-        return items[item_id]
-    except KeyError:
-        abort(404, message="item not found")
-
-
-@app.delete("/item/<string:item_id>")
-def delete_item(item_id):
-    try:
-        del items[item_id]
-        return {"message":"Item Deleted Successfully"}
-    except KeyError:
-        abort(404, message="item not found")
-
-
-@app.put("/item/<string:item_id>")
-def update_item(item_id):
-    item_data=request.get_json()
-    if "price" not in item_data or "name" not in item_data:
-        abort(400,message="Bad request Ensure you include both price and name")
-    if item_id in items:
-        items[item_id]["price"]=item_data["price"]
-        items[item_id]["name"]=item_data["name"]
-        return items[item_id], 200
-
-    
-    abort(404, message="item with this id not found")
-
-
-@app.delete("/store/<string:store_id>")
-def delete_store(store_id):
-    try:
-        del stores[store_id]
-        return {"message":"Store Deleted"}
-    except KeyError:
-        abort(404,message="Store not found")
-
+api.register_blueprint(itemBluePrint)
+api.register_blueprint(storeBluePrint)
